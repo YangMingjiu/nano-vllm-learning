@@ -1,3 +1,32 @@
+## 📝 Nano-vllm源码学习
+
+本仓库 Fork 自 [GeeeekExplorer/nano-vllm](https://github.com/GeeeekExplorer/nano-vllm)，在原始代码基础上添加了：
+
+- **中文注释**：`scheduler.py` / `block_manager.py` / `llm_engine.py` / `attention.py` 核心代码逐行中文注释
+- **调度统计功能**：新增 Prefill / Decode / Preemption / Cache Hit 计数器
+- **Benchmark 实验**：9 组不同 batch size 的吞吐量对比实验 + 可视化图表
+- **学习笔记**：11 天的源码学习笔记（`docs/` 目录）
+
+本项目是我 AI Infra 推理方向学习路线的一部分：
+
+| 项目 | 内容 | 方向 |
+|------|------|------|
+| [CUDA-GEMM-Learning](https://github.com/YangMingjiu/CUDA-GEMM-Learning) | 6 种 GPU GEMM 优化技术 | GPU Kernel 优化 |
+| [CUDA-FlashAttention-Learning](https://github.com/YangMingjiu/CUDA-FlashAttention-Learning) | FlashAttention Forward + Causal Mask | 算子优化 |
+| **本项目** | 推理引擎源码学习 + Benchmark | 推理系统 |
+
+### Benchmark 结果
+
+![Benchmark Results](bench_throughput.png)
+
+**关键发现：**
+- Batch 1→64：吞吐量从 161 提升到 2507 tok/s（**16× 提升**），Preemption = 0
+- Batch 128+：显存不足触发频繁 Preemption（145 次），吞吐量下降到 1222 tok/s
+- RTX 3070 Laptop 8GB 的最优并发数约为 64 个请求
+
+详细学习笔记见 [`docs/`](docs/) 目录。
+
+---
 <p align="center">
 <img width="300" src="assets/logo.png">
 </p>
