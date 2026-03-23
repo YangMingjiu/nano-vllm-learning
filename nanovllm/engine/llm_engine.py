@@ -46,9 +46,13 @@ class LLMEngine:
         self.scheduler.add(seq)
 
     def step(self):
+        #先进入调度器调度，看是否是prefill还是decode
         seqs, is_prefill = self.scheduler.schedule()
+        #然后交给gpu处理
         token_ids = self.model_runner.call("run", seqs, is_prefill)
+        #* 最后再交给scheduler处理：如果生成的是EOS，就释放块，移出请求队列，以及把新token追加到序列里
         self.scheduler.postprocess(seqs, token_ids)
+        #整理输出
         outputs = [(seq.seq_id, seq.completion_token_ids) for seq in seqs if seq.is_finished]
         num_tokens = sum(len(seq) for seq in seqs) if is_prefill else -len(seqs)
         return outputs, num_tokens
@@ -67,9 +71,11 @@ class LLMEngine:
         if not isinstance(sampling_params, list):
             sampling_params = [sampling_params] * len(prompts)
         for prompt, sp in zip(prompts, sampling_params):
+            #这里先add request，就是把请求放进了waiting队列里，这一步不是scheduler做的，也不是step做的
             self.add_request(prompt, sp)
         outputs = {}
         prefill_throughput = decode_throughput = 0.
+        #没有完成，就进入循环；此时开始计数，并且进入step()
         while not self.is_finished():
             t = perf_counter()
             output, num_tokens = self.step()
@@ -86,8 +92,15 @@ class LLMEngine:
                 outputs[seq_id] = token_ids
                 if use_tqdm:
                     pbar.update(1)
+        #* 生成输出，这里使用sorted()是因为传入prompt的顺序和请求完成的顺序不一样；第一个结果对应第一个prompt...
         outputs = [outputs[seq_id] for seq_id in sorted(outputs.keys())]
+        #将token解码成文字
         outputs = [{"text": self.tokenizer.decode(token_ids), "token_ids": token_ids} for token_ids in outputs]
         if use_tqdm:
             pbar.close()
+        print("\n=== Scheduler Stats ===")
+        print(f"Prefill steps:  {self.scheduler.num_prefill}")
+        print(f"Decode steps:   {self.scheduler.num_decode}")
+        print(f"Preemptions:    {self.scheduler.num_preempt}")
+        print(f"Cache hits:     {self.scheduler.block_manager.num_cache_hit}")
         return outputs

@@ -18,13 +18,17 @@ def store_kvcache_kernel(
     slot_mapping_ptr,
     D: tl.constexpr,
 ):
+    #当前线程块的编号，等价于CUDA的blockIdx.x
     idx = tl.program_id(0)
+    #* 这个token的kv应该写到cache的哪个位置
     slot = tl.load(slot_mapping_ptr + idx)
     if slot == -1: return
+    #*计算这个token在kv张量中的位置，读取D个数值；这里的idx是第几个token；stride是张量中每个token之间的间距
     key_offsets = idx * key_stride + tl.arange(0, D)
     value_offsets = idx * value_stride + tl.arange(0, D)
     key = tl.load(key_ptr + key_offsets)
     value = tl.load(value_ptr + value_offsets)
+    #*计算在cache中的写入位置，写入D个数值
     cache_offsets = slot * D + tl.arange(0, D)
     tl.store(k_cache_ptr + cache_offsets, key)
     tl.store(v_cache_ptr + cache_offsets, value)
