@@ -27,6 +27,15 @@
 详细学习笔记见 [`docs/`](docs/) 目录。
 
 ---
+### 核心调用链
+```
+LLM.generate(prompts)
+  └→ while not finished: step()
+       ├→ scheduler.schedule()    # Prefill or Decode？显存够不够？
+       ├→ model_runner.run()      # GPU forward
+       └→ process_outputs()       # 采样 + 状态更新
+```
+---
 <p align="center">
 <img width="300" src="assets/logo.png">
 </p>
